@@ -43,12 +43,15 @@ class ComplexLinear(nn.Module):
     def __init__(self, in_features, out_features, bias=False, p=0.5):
         super(ComplexLinear, self).__init__()
         self.linear = nn.Linear(in_features, out_features, bias)
+        self.mask = torch.rand(out_features, in_features) > p
+        self.linear.weight.data[self.mask] = 0
         # self.linear.weight.data = torch.abs(self.linear.weight.data)
         # inhib = torch.rand(in_features) > p
         # self.linear.weight.data[inhib, :] = -self.linear.weight.data[inhib, :]
         # print(self.linear.weight.data.view(-1))
 
     def forward(self, input):
+        self.linear.weight.data[self.mask] = 0
         return self.linear(input[0]), self.linear(input[1])
 
 
@@ -57,12 +60,12 @@ class Modulo(nn.Module):
         super(Modulo, self).__init__()
 
     def forward(self, n, m):
-        m_prime = torch.max(m, torch.tensor(1))
+        m_prime = torch.max(m, torch.tensor(1.0))
         return modulo(n, m_prime)
 
 
 class RIPLayer(nn.Module):
-    def __init__(self, in_dim, out_dim, f_max, homeostasis=False, bias=False, p=0.5):
+    def __init__(self, in_dim, out_dim, f_max, homeostasis=False, bias=False, p=1):
         super(RIPLayer, self).__init__()
         self.rip = RIPNonlinear(f_max)
         self.affine = ComplexLinear(in_dim, out_dim, bias, p)

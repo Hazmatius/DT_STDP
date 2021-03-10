@@ -1,24 +1,15 @@
 import torch
 import torch.nn as nn
 import numpy as np
-import copy
-import pytorch_STDP
-import os
-from pytorch_STDP import RIPLayer
-from pytorch_STDP import RIPNetwork
-import matplotlib.pyplot as plt
-from mpl_toolkits.axes_grid1 import make_axes_locatable
-import scipy
-from scipy.stats import entropy
-from datetime import datetime
+from py_DTSTDP import pytorch_STDP as py_STDP
 
 
 class RIPCoder(nn.Module):
     def __init__(self, encoder_dims, max_encoder_rate, max_decoder_rate):
         super(RIPCoder, self).__init__()
         decoder_dims = [i for i in reversed(encoder_dims)]
-        self.encoder = RIPNetwork(encoder_dims, max_encoder_rate, True)
-        self.decoder = RIPNetwork(decoder_dims, max_decoder_rate)
+        self.encoder = py_STDP.RIPNetwork(encoder_dims, max_encoder_rate, True)
+        self.decoder = py_STDP.RIPNetwork(decoder_dims, max_decoder_rate)
 
     def forward(self, input):
         code = self.encoder(input)
@@ -30,14 +21,14 @@ def random_vector(f_max, N):
     phase = torch.zeros(1, N, requires_grad=True)
     rate[torch.rand_like(rate) < 0.65] = 0.0
     vector = (rate, phase)
-    return pytorch_STDP.polar_to_cart(vector)
+    return py_STDP.polar_to_cart(vector)
 
 
 def jitter(complex_tensor):
-    tensor_polar = pytorch_STDP.cart_to_polar(complex_tensor)
+    tensor_polar = py_STDP.cart_to_polar(complex_tensor)
     rate = tensor_polar[0]
     phase = tensor_polar[1]
-    jitter_tensor = pytorch_STDP.polar_to_cart((rate, phase + torch.rand_like(phase)/20))
+    jitter_tensor = py_STDP.polar_to_cart((rate, phase + torch.rand_like(phase) / 20))
     return jitter_tensor
 
 
@@ -57,8 +48,8 @@ def get_error_history(dataset, add_jitter, encoder_dims, max_encoder_rate, max_d
                 x = dataset[j]
             # print(x)
             x_hat, code = ripcoder.forward(x)
-            x_hat_polar = pytorch_STDP.cart_to_polar(x_hat)
-            x_polar = pytorch_STDP.cart_to_polar(x)
+            x_hat_polar = py_STDP.cart_to_polar(x_hat)
+            x_polar = py_STDP.cart_to_polar(x)
             error = error + mse.forward(x_hat_polar[0], x_polar[0])
         if i % 100 == 0:
             print('    {} - ERROR:{:.5f}'.format(i, error.item()))

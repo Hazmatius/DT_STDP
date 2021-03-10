@@ -2,71 +2,32 @@ import torch
 import torch.nn as nn
 import numpy as np
 import copy
-import pytorch_STDP
+from py_DTSTDP import pytorch_STDP as py_STDP
+from py_DTSTDP import utils
 import os
-from pytorch_STDP import RIPLayer
-from pytorch_STDP import RIPNetwork
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-import scipy
 from scipy.stats import entropy
 from datetime import datetime
 
 
-def orient_array(array1, array2):
-    offset_error = np.zeros_like(array2)
-    for i in range(len(array2)):
-        offset_error[i] = np.sum((array1 - np.roll(array2, i))**2)
-    return np.roll(array2, np.argmin(offset_error))
-
-
-def orient_img(a):
-    array = copy.copy(a)
-    for i in range(1, array.shape[1]):
-        array[:, i] = orient_array(array[:, i-1], array[:, i])
-    return array
-
-class RIPCoder(nn.Module):
-    def __init__(self):
-        super(RIPCoder, self).__init__()
-
-        self.encoder = RIPNetwork([32, 24, 16, 8], 1)
-        self.decoder = RIPNetwork([8, 16, 24, 32], 1)
-
-    def forward(self, input):
-        code = self.encoder(input)
-        return self.decoder(code), code
-
-
-folder = '/Users/alexbaranski/Desktop/fig_folder/'
-
-# data = np.arange(100, 0, -1).reshape(10, 10)
-#
-# fig, ax = plt.subplots()
-# divider = make_axes_locatable(ax)
-# cax = divider.append_axes('right', size='5%', pad=0.05)
-#
-# im = ax.imshow(data, cmap='bone')
-#
-# fig.colorbar(im, cax=cax, orientation='vertical')
-# plt.show()
-
+project_folder, data_folder, figure_folder = utils.get_subfolders(__file__)
 
 N = 100
 T = 10000
 nbins = 25
 f_max = 1
-network = RIPLayer(N, N, f_max, True)
+network = py_STDP.RIPLayer(N, N, f_max, True)
 x_polar = (f_max * torch.ones(1, N), torch.rand(1, N))
 # plt.hist(x_polar[1].detach())
 
 hist_vects_1 = list()
 entropy_1 = list()
-x = pytorch_STDP.polar_to_cart(x_polar)
+x = py_STDP.polar_to_cart(x_polar)
 for i in range(T+1):
     if i % 100 == 0:
         print(i)
-    xp = pytorch_STDP.cart_to_polar(x)
+    xp = py_STDP.cart_to_polar(x)
     hist_vect = np.histogram(xp[1].detach(), np.linspace(0, 1, nbins + 1), density=True)[0]
     p = hist_vect / sum(hist_vect)
     entropy_1.append(entropy(p))
@@ -79,11 +40,11 @@ hist_hist_1 = torch.cat(hist_vects_1, dim=0).transpose(0, 1)
 
 hist_vects_2 = list()
 entropy_2 = list()
-x = pytorch_STDP.polar_to_cart(x_polar)
+x = py_STDP.polar_to_cart(x_polar)
 for i in range(T+1):
     if i % 100 == 0:
         print(i)
-    xp = pytorch_STDP.cart_to_polar(x)
+    xp = py_STDP.cart_to_polar(x)
     hist_vect = np.histogram(xp[1].detach(), np.linspace(0, 1, nbins + 1), density=True)[0]
     p = hist_vect / sum(hist_vect)
     entropy_2.append(entropy(p))
@@ -110,7 +71,7 @@ ax[0].set_title('no learning')
 # ax[0].set_xlabel('Time step')
 ax[0].set_ylabel('Phase offset')
 
-org_hist_2 = orient_img(hist_hist_2.numpy())
+org_hist_2 = utils.orient_img(hist_hist_2.numpy())
 
 # print(hist_hist_2.shape)
 im1 = ax[1].imshow(org_hist_2, extent=[1,T,0,1], aspect='auto', vmin=min_density, vmax=max_density)
@@ -138,7 +99,7 @@ ax[2].legend(loc='lower left')
 
 plt.suptitle('Evolution of phase distribution')
 filename = 'synchronization_1_[{}].eps'.format(datetime.now().strftime('%Y_%m_%d--%H_%M_%S'))
-plt.savefig(os.path.join(folder, filename), pad_inches=0)
+plt.savefig(os.path.join(figure_folder, filename), pad_inches=0)
 plt.show()
 
 # def random_vector(f_max, N):
@@ -198,7 +159,7 @@ plt.show()
 # for j in range(len(dataset)):
 #     x = dataset[j]
 #     x_hat, code = ripcoder.forward(x)
-#     code_polar = pytorch_STDP.cart_to_polar(code)
+#     code_polar = py_STDP.cart_to_polar(code)
 #     phases
 #     print(code_polar)
 #
@@ -219,7 +180,7 @@ if False:
     network = RIPNetwork([N] * L, f_max, True)
 
     x_polar = (f_max*torch.ones(1, N), torch.rand(1, N))
-    x = pytorch_STDP.polar_to_cart(x_polar)
+    x = py_STDP.polar_to_cart(x_polar)
 
     y = network.forward(x)
     f1 = plt.figure()
@@ -244,7 +205,7 @@ if False:
 
     layer = RIPLayer(N, N, f_max, True, 0.5)
     z = layer.forward(x)
-    z_polar_original = pytorch_STDP.cart_to_polar(z)
+    z_polar_original = py_STDP.cart_to_polar(z)
     # plt.subplot(1, 2, 1)
 
     # f2 = plt.figure()
@@ -259,7 +220,7 @@ if False:
         hist_vect = plt.hist(layer.state[1].detach(), np.linspace(0, 1, 25 + 1), density=True)
         hist_vects.append(torch.tensor(hist_vect[0]).unsqueeze(0))
         layer.rip_learn(x, z, 3, hebb_weight=1)
-        # z_polar = pytorch_STDP.cart_to_polar(z)
+        # z_polar = py_STDP.cart_to_polar(z)
         # plt.hist(z[1].detach(), np.linspace(0, 1, 25))
     hist_hist = torch.cat(hist_vects, dim=0).transpose(0, 1)
     plt.clf()
@@ -271,7 +232,7 @@ if False:
     # plt.subplot(1, 2, 2)
 
     plt.hist(z_polar_original[1].detach(), np.linspace(0, 1, 25+1))
-    z_polar = pytorch_STDP.cart_to_polar(z)
+    z_polar = py_STDP.cart_to_polar(z)
     plt.hist(z_polar[1].detach(), np.linspace(0, 1, 25+1))
 
 
